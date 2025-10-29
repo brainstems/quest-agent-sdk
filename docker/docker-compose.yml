@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Redis for event streaming
+  redis:
+    image: redis:7-alpine
+    container_name: quest-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Example LangChain SQL Agent
+  sql-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: quest-sql-agent
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_URL=http://host.docker.internal:3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AGENT_TYPE=sql
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./examples:/app/examples
+      - ./python:/app/python
+    command: python examples/simple_sql_agent.py
+    restart: unless-stopped
+
+  # Example LangChain RAG Agent
+  rag-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: quest-rag-agent
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_URL=http://host.docker.internal:3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DOCUMENTS_PATH=/app/documents
+      - AGENT_TYPE=rag
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./examples:/app/examples
+      - ./python:/app/python
+      - ./documents:/app/documents  # Mount your documents here
+    command: python examples/rag_analysis_agent.py
+    restart: unless-stopped
+
+  # Example Algorithm Executor Agent
+  algorithm-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: quest-algorithm-agent
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_URL=http://host.docker.internal:3000
+      - AGENT_TYPE=algorithm
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./examples:/app/examples
+      - ./python:/app/python
+    command: python examples/algorithm_executor_agent.py
+    restart: unless-stopped
+
+volumes:
+  redis-data:

@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy SDK and examples
+COPY python/ ./python/
+COPY examples/ ./examples/
+
+# Create documents directory for RAG agent
+RUN mkdir -p /app/documents
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Default command (override in docker-compose)
+CMD ["python", "--version"]
